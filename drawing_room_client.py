@@ -8,9 +8,7 @@ import os
 import re
 import time
 import tkinter
-
-
-class O:''
+from conf import *
 
 def main ():
     ''
@@ -61,7 +59,7 @@ def main ():
     def send_msg(event):
         #chat_line
         x = chat_line_var.get()
-        chat_line_var.set('hello')
+        chat_line_var.set('')
         print(x)
     canvas.bind('<Button-1>', cb_btn_press)
     canvas.bind('<B1-Motion>', cb_btn_move)

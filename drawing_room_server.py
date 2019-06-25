@@ -8,6 +8,11 @@ import os
 import re
 import time
 import socket
+from conf import *
+
+class Server (socket.socket):
+    def __init__(self, port=conf.port):
+        pass
 
 def main ():
     ''
