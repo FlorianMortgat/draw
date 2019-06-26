@@ -8,7 +8,10 @@ import os
 import re
 import time
 import tkinter
+import socket
 from conf import *
+
+
 
 def main ():
     ''
