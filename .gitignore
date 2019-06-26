@@ -1,0 +1,6 @@
+kanban/*
+!kanban/Drawing Room-export.json
+.*
+!.gitignore
+*.swp
+__pycache__/*
