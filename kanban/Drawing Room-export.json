@@ -1,0 +1,97 @@
+{
+  "name": "Drawing Room",
+  "numberOfColumns": 4,
+  "columns": [
+    {
+      "name": "Backlog",
+      "cards": [
+        {
+          "name": "Synchronized drawing between clients",
+          "details": "",
+          "color": "FFFFFF"
+        },
+        {
+          "name": "Chat functionality",
+          "details": "",
+          "color": "FFFFFF"
+        },
+        {
+          "name": "Server keeps the current drawing to send it to new clients",
+          "details": "",
+          "color": "FFFFFF"
+        },
+        {
+          "name": "Colors",
+          "details": "",
+          "color": "FFFFFF"
+        },
+        {
+          "name": "Rules (who can draw, who can’t)",
+          "details": "",
+          "color": "FFFFFF"
+        },
+        {
+          "name": "Rules (random word to be drawn, winning, points)",
+          "details": "",
+          "color": "FFFFFF"
+        },
+        {
+          "name": "Line thickness",
+          "details": "",
+          "color": "FFFFFF"
+        },
+        {
+          "name": "Eraser",
+          "details": "",
+          "color": "FFFFFF"
+        },
+        {
+          "name": "Straight line",
+          "details": "",
+          "color": "FFFFFF"
+        },
+        {
+          "name": "Bezier",
+          "details": "",
+          "color": "FFFFFF"
+        }
+      ],
+      "settings": {
+        "color": "#eac9c9"
+      }
+    },
+    {
+      "name": "Selected cards",
+      "cards": [],
+      "settings": {}
+    },
+    {
+      "name": "In Progress",
+      "cards": [
+        {
+          "name": "Input buffering per client",
+          "details": "",
+          "color": "FFFFFF"
+        }
+      ],
+      "settings": {
+        "color": "#cae3ef"
+      }
+    },
+    {
+      "name": "Done",
+      "cards": [
+        {
+          "name": "Basic drawing funtionality (polyline under the mouse)",
+          "details": "",
+          "color": "FFFFFF"
+        }
+      ],
+      "settings": {
+        "color": "#c3f5b6"
+      }
+    }
+  ],
+  "archived": [],
+  "settings": {}
+}
