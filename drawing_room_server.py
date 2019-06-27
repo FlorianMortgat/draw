@@ -80,7 +80,6 @@ class Server(socket.socket):
             ret.append(b'MSG:client left')
             client_id = 0
         elif command.startswith(b'MSG:'):
-            print('msg')
             ret.append(command)
         elif command.startswith(b'L:'):
             ret.append(command)
@@ -96,6 +95,7 @@ class Server(socket.socket):
 
 def main ():
     ''
+    print('starting')
     server = Server()
     while True:
         server.main()
