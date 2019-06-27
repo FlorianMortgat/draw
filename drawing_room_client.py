@@ -11,7 +11,7 @@ import tkinter
 import socket
 from conf import *
 
-
+SEPARATOR=b'\n'
 
 def main ():
     ''
@@ -23,6 +23,7 @@ def main ():
     G.y = 0
     G.last_btn_move = 0
     G.lines = []
+    G.socket_buf = b''
     window = tkinter.Tk()
     canvas = tkinter.Canvas(window, width=500, height=300, background='#ffe')
     #people_list = tkinter.Listbox(window)
@@ -61,14 +62,45 @@ def main ():
         print(event.char)
     def send_msg(event):
         #chat_line
-        x = chat_line_var.get()
+        msg = chat_line_var.get()
         chat_line_var.set('')
-        print(x)
+        G.socket.send(b'MSG:' + msg.encode('utf-8') + SEPARATOR)
+    def connect(host, port):
+        G.socket = socket.socket()
+        G.socket.connect((host, port))
+        G.socket.settimeout(0)
+    def network_check():
+        try:
+            G.socket_buf += G.socket.recv(255)
+        except:
+            # TODO: except BlockingIOError
+            window.after(2000, network_check)
+            return
+        commands = G.socket_buf.split(SEPARATOR)
+        G.socket_buf = commands[-1]
+        commands = commands[0:-1]
+        for command in commands:
+            handle_command(command)
+        window.after(2000, network_check)
+    def handle_command(command):
+        if command.startswith(b'MSG:'):
+            msg = command[4:].decode('utf-8') + '\n'
+            print('Reçu: ' + msg)
+            chat_display.config(state='normal')
+            chat_display.insert('end', msg)
+            chat_display.config(state='disabled')
+        elif command.startswith(b'L:'):
+            pass
+
+
+        
     canvas.bind('<Button-1>', cb_btn_press)
     canvas.bind('<B1-Motion>', cb_btn_move)
     canvas.bind('<ButtonRelease-1>', cb_btn_release)
     canvas.bind('<Key>', cb_keypress)
     chat_line.bind('<Return>', send_msg)
+    connect('127.0.0.1', conf.port)
+    window.after(1000, network_check)
     window.mainloop()
 
 if __name__ == "__main__":
