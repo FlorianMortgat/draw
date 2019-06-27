@@ -33,7 +33,7 @@ class Server(socket.socket):
         socket.socket.__init__(self)
         self.bind(('', port))
         self.listen(0)
-        self.settimeout(0)
+        self.setblocking(0)
         self.history = []
         self.send_queue = []
 
@@ -43,7 +43,8 @@ class Server(socket.socket):
             client_id = uuid()
         except:
             return
-        client_socket.settimeout(0)
+        print('New client!')
+        client_socket.setblocking(0)
         client_rep = ClientRep(
             client_socket,
             ip,
@@ -76,7 +77,9 @@ class Server(socket.socket):
     def handle_command(self, client_id, command):
         ret = []
         if command == b'EXIT':
-            self.clients.pop(client_id)
+            print('Client leaves.')
+            leaving_client = self.clients.pop(client_id)
+            leaving_client.socket.close()
             ret.append(b'MSG:client left')
             client_id = 0
         elif command.startswith(b'MSG:'):
@@ -89,7 +92,14 @@ class Server(socket.socket):
         while self.send_queue:
             command = self.send_queue.pop(0)
             for client_id, client in self.clients.items():
-                client.send(command + SEPARATOR)
+                try:
+                    client.send(command + SEPARATOR)
+                except BrokenPipeError:
+                    print('Broken pipe :(')
+                    leaving_client = client
+                    leaving_client.socket.close()
+                    self.clients.pop(client.id)
+
 
 
 
@@ -99,7 +109,9 @@ def main ():
     server = Server()
     while True:
         server.main()
-        time.sleep(0.2)
+        time.sleep(0.1)
+    server.shutdown()
+    server.close()
 
 if __name__ == "__main__":
     try: main ()

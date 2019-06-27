@@ -10,6 +10,7 @@ import time
 import tkinter
 import socket
 from conf import *
+IP='81.220.216.83'
 
 SEPARATOR=b'\n'
 
@@ -23,6 +24,9 @@ def main ():
     G.y = 0
     G.last_btn_move = 0
     G.lines = []
+    G.out_buf = b''
+    G.unsent_start = 0
+    G.serialized = b''
     G.socket_buf = b''
     window = tkinter.Tk()
     canvas = tkinter.Canvas(window, width=500, height=300, background='#ffe')
@@ -36,23 +40,28 @@ def main ():
     chat_display.pack(side='bottom', fill='both', expand=True)
 
     def cb_btn_press(event):
-        print('button 1 pressed', event.x, event.y)
         canvas.focus_set()
         G.x = event.x
         G.y = event.y
+        G.out_buf = b'L:%d,%d'%(G.x, G.y)
     def cb_btn_move(event):
         # throttling this (to avoid stressing network)
         distance = ((event.x - G.x) ** 2 + (event.y - G.y) **2)**0.5
         if time.time() - G.last_btn_move < 0.06 and distance < 20:
             return
         G.last_btn_move = time.time()
-        print('button 1 moved', event.x, event.y)
-        l = canvas.create_line(G.x, G.y, event.x, event.y, fill='black')
+        l = canvas.create_line(G.x, G.y, event.x, event.y, fill='black', width=2)
         G.lines.append(l)
+        G.out_buf += b'-%d,%d'%(event.x, event.y)
+        if len(G.out_buf) > 40:
+            G.socket.send(G.out_buf)
+            G.out_buf = b''
         G.x = event.x
         G.y = event.y
     def cb_btn_release(event):
-        print('button 1 released', event.x, event.y)
+        G.out_buf += b'-%d,%d\n'%(event.x, event.y)
+        G.socket.send(G.out_buf)
+        G.out_buf = b''
         G.x = event.x
         G.y = event.y
     def cb_keypress(event):
@@ -81,7 +90,7 @@ def main ():
         commands = commands[0:-1]
         for command in commands:
             handle_command(command)
-        window.after(2000, network_check)
+        window.after(400, network_check)
     def handle_command(command):
         if command.startswith(b'MSG:'):
             msg = command[4:].decode('utf-8') + '\n'
@@ -90,17 +99,32 @@ def main ():
             chat_display.insert('end', msg)
             chat_display.config(state='disabled')
         elif command.startswith(b'L:'):
-            pass
+            start = True
+            for x,y in re.findall(b'(\\d+),(\\d+)', command):
+                x = int(x)
+                y = int(y)
+                if not start:
+                    l = canvas.create_line(
+                            prev_x, prev_y, x, y,
+                            fill='red',
+                            width=2
+                        )
+                    G.lines.append(l)
+                prev_x, prev_y = x, y
+                start = False
 
+    def on_exit(e):
+        G.socket.send(b'EXIT\n')
+        G.socket.close()
 
-        
     canvas.bind('<Button-1>', cb_btn_press)
     canvas.bind('<B1-Motion>', cb_btn_move)
     canvas.bind('<ButtonRelease-1>', cb_btn_release)
     canvas.bind('<Key>', cb_keypress)
     chat_line.bind('<Return>', send_msg)
-    connect('127.0.0.1', conf.port)
+    connect(IP, conf.port)
     window.after(1000, network_check)
+    window.bind('destroy', on_exit)
     window.mainloop()
 
 if __name__ == "__main__":
