@@ -8,17 +8,19 @@ import os
 import re
 import time
 import socket
-from uuid import uuid1 as uuid
+import random
 from conf import *
 
 SEPARATOR = b'\n'
 
 class ClientRep:
-    def __init__(self, socket, ip, port, client_id):
+    N = 1
+    def __init__(self, socket, ip, port):
         self.socket = socket
         self.ip = ip
         self.port = port
-        self.id = client_id
+        self.id = ClientRep.N
+        ClientRep.N += 1
         self.recv_part = b''
         self.send_part = b''
     def send(self, *args):
@@ -40,7 +42,6 @@ class Server(socket.socket):
     def check_new_client(self):
         try:
             client_socket, (ip, port) = self.accept()
-            client_id = uuid()
         except:
             return
         print('New client!')
@@ -48,9 +49,9 @@ class Server(socket.socket):
         client_rep = ClientRep(
             client_socket,
             ip,
-            port,
-            client_id)
-        self.clients[client_id] = client_rep
+            port)
+        self.clients[client_rep.id] = client_rep
+        self.send_queue.append((client_rep.id, b'MSG:New client'))
 
     def recv_client(self, client):
         try:
@@ -66,7 +67,7 @@ class Server(socket.socket):
     def main(self):
         self.check_new_client()
 
-        for client_id, client in self.clients.items():
+        for client_id, client in self.clients.copy().items():
             commands = self.recv_client(client)
             for command in commands:
                 to_be_sent = self.handle_command(client_id, command)
@@ -80,19 +81,23 @@ class Server(socket.socket):
             print('Client leaves.')
             leaving_client = self.clients.pop(client_id)
             leaving_client.socket.close()
-            ret.append(b'MSG:client left')
+
+            ret.append((client_id, b'MSG:client left'))
             client_id = 0
+        elif command == b'CLEAR':
+            ret.append((client_id, command))
         elif command.startswith(b'MSG:'):
-            ret.append(command)
+            ret.append((client_id, command))
         elif command.startswith(b'L:'):
-            ret.append(command)
+            ret.append((client_id, command))
         return ret
 
     def play_queue_to_clients(self):
         while self.send_queue:
-            command = self.send_queue.pop(0)
-            for client_id, client in self.clients.items():
+            emitter_id, command = self.send_queue.pop(0)
+            for client_id, client in self.clients.copy().items():
                 try:
+                    client.send('{:05d}'.format(emitter_id).encode('utf-8'))
                     client.send(command + SEPARATOR)
                 except BrokenPipeError:
                     print('Broken pipe :(')
