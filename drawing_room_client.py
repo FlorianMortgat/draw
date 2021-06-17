@@ -7,7 +7,8 @@ import sys
 import os
 import re
 import time
-import tkinter
+import pygame
+from pygame.locals import *
 import socket
 from conf import *
 G = O()
@@ -15,7 +16,7 @@ G.nick='nameless'
 G.IP=''
 
 SEPARATOR=b'\n'
-
+#scooter was here :D
 
 
 
@@ -25,41 +26,112 @@ def get_color(i):
             (30 + i*60) % 255,
             (15 + i*90) % 255
             )
+class PygameClient:
+    def __init__(self, host, port):
+        self.window = pygame.display.set_mode((640, 480))
+        pygame.display.set_caption('pygame client')
+        pygame.init()
+        self.drawing = pygame.Surface((640, 480))
+        self.MAX_DRAW_SIZE = 20
+        self.clock = pygame.time.Clock()
+        self.over = False
+        self.is_drawing = False
+        self.history = []
+        self.thickness_history = []
+        self.polygon = []
+        self.clear()
+        self.draw_size = 4
+        self.history.append({
+            'type': 'size',
+            'time': time.time(),
+            'size': 4
+        })
+        self.font = pygame.font.Font(None, 40)
+    def refresh(self):
+        self.clock.tick(60) #60 fps max
+        self.window.blit(self.drawing, (0, 0))
+        draw_thickness_text = self.font.render('Draw Thickness: %d'%self.draw_size, False, ((20,40,100)))
+        self.window.blit(draw_thickness_text, (20, 20))
+        pygame.display.update()
+    def handle_events(self):
+        keys = pygame.key.get_pressed() #the better way to get key presses
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                self.over = True
+            elif event.type == MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    self.is_drawing = True
+                    #self.polygon.append((event.x, event.y))
+            elif event.type == MOUSEBUTTONUP:
+                if event.button == 1:
+                    self.is_drawing = False
+                    #pygame.draw.circle(self.window, ((255,0,0)), event.pos, self.draw_size // 2) #4 wide, because 2 both ways
+                    self.history.append({
+                        'time': time.time(),
+                        'type': 'polygon',
+                        'polygon': self.polygon
+                    })
+                    self.history.append({
+                        'time': time.time(),
+                        'type': 'size',
+                        'size': self.draw_size
+                    })
+                    self.polygon = []
+                elif event.button == 4:#mouse wheel up/down (button 4/5)
+                    self.draw_size += 1
+                    if self.draw_size > self.MAX_DRAW_SIZE:
+                        self.draw_size -= 1
+                elif event.button == 5:
+                    self.draw_size -= 1
+                    if self.draw_size < 1:
+                        self.draw_size = 1
+                    #self.polygon.append((event.x, event.y))
+            elif event.type == MOUSEMOTION:
+                if self.is_drawing:
+                    self.polygon.append(event.pos)
+                    #pygame.draw.circle(self.window, ((255, 0, 0)), event.pos, self.draw_size // 2)
+                    if len(self.polygon) >= 2:
+                        pygame.draw.line(self.drawing, (255, 0, 0), self.polygon[-2], self.polygon[-1], self.draw_size)
+            elif event.type == KEYUP:
+                if event.key == pygame.K_z and (keys[pygame.K_LCTRL] or keys[pygame.K_RCTRL]):
+                    print('ctrl+z')
+                    self.polygon = []
+                    if self.history: self.history.pop()
+                    self.draw_history()
+                if event.key == pygame.K_SPACE:
+                    self.clear()
+
+
+
+    def run(self):
+        while not self.over:
+            time.sleep(0.01)
+            self.handle_events()
+            self.refresh()
+    def clear(self):
+        self.history.append({
+            'time': time.time(),
+            'type': 'clear',
+        })
+        self.drawing.fill((50, 40, 200))
+    def draw_history(self):
+        for history_event in self.history:
+            if history_event['type'] == 'size':
+                self.draw_size = history_event['size']
+            elif history_event['type'] == 'polygon':
+                polygon = list(history_event['polygon'])
+                if len(polygon):
+                    dot1 = polygon.pop(0)
+                    while len(polygon):
+                        dot2 = polygon.pop(0)
+                        pygame.draw.line(self.drawing, (255, 0, 0), dot1, dot2, self.draw_size) #history_event['size'] ?
+                        dot1 = dot2
+            elif history_event['type'] == 'clear':
+                self.drawing.fill((50, 40, 200))
+
 
 def main ():
     ''
-    class ConnectDialog(tkinter.Toplevel):
-        def __init__(self, parent):
-            super().__init__(parent)
-            self.title = 'Connection informations'
-
-            tkinter.Label(self, text='Server IP').pack()
-            self.host_entry = tkinter.Entry(self)
-            self.host_entry.pack()
-
-            tkinter.Label(self, text='Nickname').pack()
-            self.nick_entry = tkinter.Entry(self)
-            self.nick_entry.pack()
-            tkinter.Button(self, text='Connect', command=self.go).pack()
-            self.bind('<Return>', lambda *w: self.go())
-            self.host_entry.focus_set()
-        def go(self):
-            G.IP = self.host_entry.get().strip()
-            G.nick = self.nick_entry.get().strip()
-            self.destroy()
-            connect(G.IP, conf.port)
-            window.after(200, network_check)
-    def show_connect_dialog():
-        print('1')
-        connect_dialog = ConnectDialog(window)
-        connect_dialog.transient(window)
-        connect_dialog.grab_set()
-        window.wait_window(connect_dialog)
-
-    def get_client_name(client_id):
-        if client_id in G.clients:
-            return G.clients[client_id]
-        return '{:d}'.format(client_id)
     # G is just a storage object: its goal is to easily make
     # variables accessible (readable and writeable) in functions
     G.clients = {}
@@ -72,17 +144,10 @@ def main ():
     G.unsent_start = 0
     G.serialized = b''
     G.socket_buf = b''
-    window = tkinter.Tk()
-    window.after(100, show_connect_dialog)
-    canvas = tkinter.Canvas(window, width=500, height=300, background='#ffe')
-    #people_list = tkinter.Listbox(window)
-    chat_display = tkinter.Text(window, state='disabled', width=50)
-    chat_line_var = tkinter.StringVar()
-    chat_line = tkinter.Entry(window, textvariable=chat_line_var)
 
-    canvas.pack(      side='left',   fill='both', expand=True)
-    chat_line.pack(   side='bottom', fill='x',    expand=True)
-    chat_display.pack(side='bottom', fill='both', expand=True)
+    app = PygameClient('localhost', 15132136) # TODO change that
+    app.run()
+    return
 
     def cb_btn_press(event):
         canvas.focus_set()
