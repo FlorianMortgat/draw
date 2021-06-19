@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 """
-© Bzhu-Noors, 2019
+© Flo M, Scooter5561, 2021
 """
 import sys
 import os
@@ -11,14 +11,23 @@ import pygame
 from pygame.locals import *
 import socket
 from conf import *
+from collections import OrderedDict
 G = O()
 G.nick='nameless'
 G.IP=''
 
 SEPARATOR=b'\n'
 #scooter was here :D
-
-
+defined_colors = OrderedDict([
+    ('red', (255, 0, 0)),
+    ('orange',(255, 70, 0)),
+    ('yellow', (255, 255, 0)),
+    ('green', (0, 255, 0)),
+    ('blue', (0, 0, 255)),
+    ('dark_blue', (0, 0, 150)),
+    ('purple', (255, 0, 255))
+])
+#basic colors in rgb
 
 def get_color(i):
     return '#{:02x}{:02x}{:02x}'.format(
@@ -41,9 +50,13 @@ class PygameClient:
         self.polygon = []
         self.clear()
         self.draw_size = 4
+        self.draw_color = defined_colors['red']
+        self.history.append({
+            'type': 'color',
+            'color': self.draw_color
+        })
         self.history.append({
             'type': 'size',
-            'time': time.time(),
             'size': 4
         })
         self.font = pygame.font.Font(None, 40)
@@ -52,6 +65,13 @@ class PygameClient:
         self.window.blit(self.drawing, (0, 0))
         draw_thickness_text = self.font.render('Draw Thickness: %d'%self.draw_size, False, ((20,40,100)))
         self.window.blit(draw_thickness_text, (20, 20))
+
+        for n, color in enumerate(defined_colors):
+            if self.draw_color == defined_colors[color]:
+                pygame.draw.rect(self.window, (255,255,255), pygame.Rect((300-2 + n * 24, 20-2), (20+4, 20+4)))
+            pygame.draw.rect(self.window, (defined_colors[color]),  pygame.Rect((300 + n * 24, 20), (20, 20)))
+
+        help_text = pygame.font.render('Help', False, )
         pygame.display.update()
     def handle_events(self):
         keys = pygame.key.get_pressed() #the better way to get key presses
@@ -60,23 +80,36 @@ class PygameClient:
                 self.over = True
             elif event.type == MOUSEBUTTONDOWN:
                 if event.button == 1:
-                    self.is_drawing = True
+                    hitbutton = False
+                    for n, color in enumerate(defined_colors):
+                        rectangle = pygame.Rect((300 + n * 24, 20), (20, 20))
+                        if rectangle.collidepoint(event.pos):
+                            self.draw_color = defined_colors[color]
+                            # self.history.append({
+                            #     'type': 'color',
+                            #     'color': self.draw_color
+                            # })
+                            hitbutton = True
+                            break
+                    if not hitbutton:
+                        self.is_drawing = True
                     #self.polygon.append((event.x, event.y))
             elif event.type == MOUSEBUTTONUP:
                 if event.button == 1:
-                    self.is_drawing = False
-                    #pygame.draw.circle(self.window, ((255,0,0)), event.pos, self.draw_size // 2) #4 wide, because 2 both ways
-                    self.history.append({
-                        'time': time.time(),
-                        'type': 'polygon',
-                        'polygon': self.polygon
-                    })
-                    self.history.append({
-                        'time': time.time(),
-                        'type': 'size',
-                        'size': self.draw_size
-                    })
-                    self.polygon = []
+                    if self.is_drawing:
+                        self.is_drawing = False
+                        #pygame.draw.circle(self.window, ((255,0,0)), event.pos, self.draw_size // 2) #4 wide, because 2 both ways
+                        self.history.append({
+                            'type': 'polygon',
+                            'polygon': self.polygon,
+                            'size': self.draw_size,
+                            'color': self.draw_color,
+                        })
+                        # self.history.append({
+                        #     'type': 'size',
+                        #     'size': self.draw_size
+                        #})
+                        self.polygon = []
                 elif event.button == 4:#mouse wheel up/down (button 4/5)
                     self.draw_size += 1
                     if self.draw_size > self.MAX_DRAW_SIZE:
@@ -91,18 +124,29 @@ class PygameClient:
                     self.polygon.append(event.pos)
                     #pygame.draw.circle(self.window, ((255, 0, 0)), event.pos, self.draw_size // 2)
                     if len(self.polygon) >= 2:
-                        pygame.draw.line(self.drawing, (255, 0, 0), self.polygon[-2], self.polygon[-1], self.draw_size)
+                        pygame.draw.line(self.drawing, self.draw_color, self.polygon[-2], self.polygon[-1], self.draw_size)
             elif event.type == KEYUP:
                 if event.key == pygame.K_z and (keys[pygame.K_LCTRL] or keys[pygame.K_RCTRL]):
                     print('ctrl+z')
                     self.polygon = []
-                    if self.history: self.history.pop()
+                    if len(self.history) > 1: self.history.pop()
                     self.draw_history()
-                if event.key == pygame.K_SPACE:
+                elif event.key == pygame.K_SPACE:
                     self.clear()
+                elif event.key == pygame.K_ESCAPE:
+                    self.over = True
+                for n, defined_color in enumerate(defined_colors):
+                    pygame_keypad_key = getattr(pygame, 'K_KP' + str(n + 1))
+                    pygame_key = getattr(pygame, 'K_' + str(n + 1))
 
-
-
+                    if event.key == pygame_key or event.key == pygame_keypad_key: #1-9 your selected color will be highlighted at top of screen
+                        print(defined_color)
+                        self.draw_color = defined_colors[defined_color]
+                        # self.history.append({
+                        #     'type': 'color',
+                        #     'color': self.draw_color
+                        # })
+                        break
     def run(self):
         while not self.over:
             time.sleep(0.01)
@@ -110,7 +154,6 @@ class PygameClient:
             self.refresh()
     def clear(self):
         self.history.append({
-            'time': time.time(),
             'type': 'clear',
         })
         self.drawing.fill((50, 40, 200))
@@ -118,16 +161,19 @@ class PygameClient:
         for history_event in self.history:
             if history_event['type'] == 'size':
                 self.draw_size = history_event['size']
+            elif history_event['type'] == 'color':
+                self.draw_color = history_event['color']
             elif history_event['type'] == 'polygon':
                 polygon = list(history_event['polygon'])
                 if len(polygon):
                     dot1 = polygon.pop(0)
                     while len(polygon):
                         dot2 = polygon.pop(0)
-                        pygame.draw.line(self.drawing, (255, 0, 0), dot1, dot2, self.draw_size) #history_event['size'] ?
+                        pygame.draw.line(self.drawing, history_event['color'], dot1, dot2, history_event['size']) #history_event['size'] ?
                         dot1 = dot2
             elif history_event['type'] == 'clear':
                 self.drawing.fill((50, 40, 200))
+
 
 
 def main ():
